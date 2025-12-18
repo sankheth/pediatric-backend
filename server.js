@@ -1,30 +1,37 @@
 const express = require('express');
-const cors = require('cors'); // 1. Import CORS
+const cors = require('cors'); // Essential for Netlify to talk to Render
 const app = express();
+const PORT = process.env.PORT || 10000;
 
-// 2. Enable CORS 
-// This allows ALL domains to access your API. 
-// For better security later, you can restrict it to your specific website URL.
-app.use(cors()); 
+// 1. Middlewares
+app.use(cors()); // This allows your Netlify website to access the data
+app.use(express.json()); // This allows the server to read JSON from your ESP32
 
-// Middleware to parse JSON bodies
-app.use(express.json()); 
+// 2. Global variable to store the latest sensor reading
+let latestGasValue = "Waiting..."; 
 
-// Route for Arduino or Website
+// 3. ROUTE FOR ESP32: Receives data from hardware
+// URL: https://pediatric-backend.onrender.com/api/sensor-data
 app.post('/api/sensor-data', (req, res) => {
-    console.log("Data received:", req.body);
-    res.status(200).json({
-        message: "Server got the data!",
-        received: req.body
-    });
+    console.log("Data received from ESP32:", req.body);
+    
+    if (req.body && req.body.gas_value) {
+        latestGasValue = req.body.gas_value; // Stores the value
+        res.status(200).send("Data stored successfully");
+    } else {
+        res.status(400).send("Invalid data format");
+    }
 });
 
-// Route for Website to GET data (Example)
-app.get('/api/sensor-data', (req, res) => {
-    res.status(200).json({ status: "Online", sensor: "Active" });
+// 4. ROUTE FOR WEBSITE: Sends data to your Netlify app
+// URL: https://pediatric-backend.onrender.com/api/get-gas-data
+app.get('/api/get-gas-data', (req, res) => {
+    // This must match the key 'gas_value' used in your script.js
+    res.json({ "gas_value": latestGasValue }); 
 });
 
-const PORT = process.env.PORT || 3000; 
+// 5. Start Server
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
+
